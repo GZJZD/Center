@@ -2,3 +2,15 @@
 .cproject
 .project
 .settings/
+
+EFServer/*.d
+EFServer/*.o
+EFServer/EFServer
+
+EFProxy/*.d
+EFProxy/*.o
+EFProxy/ProxyServer
+
+Client/*.d
+Client/*.o
+Client/TestClient
