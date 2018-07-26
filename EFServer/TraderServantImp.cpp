@@ -617,6 +617,45 @@ void TraderServantImp::handleMarketDataQueryNotify(const OpctxPtr& op) {
 }
 
 void TraderServantImp::handleOrderInsertNotify(const OpctxPtr& op) {
+	do {
+		SessionPtr session = NULL;
+		OrderPtr order = NULL;
+		OrderInsertEventPtr event = OrderInsertEventPtr::dynamicCast(op->getEvent());
+		if (!event || !op->getChannel()->fetchSession(event->getOrderInsertField()->UserID, session)
+				|| session->fetchOrder(event->getRequestId(), order)) {
+			break;
+		}
+
+		OrderInsertEventPtr event = OrderInsertEventPtr::dynamicCast(op->getEvent());
+		if (!event) {
+			break;
+		}
+
+		SessionPtr session = NULL;
+		if (!op->getChannel()->fetchSession(event->getOrderInsertField()->UserID, session)) {
+			break;
+		}
+
+		OrderPtr order = NULL;
+		if (!session->fetchOrder(event->getRequestId(), order)) {
+			break;
+		}
+
+		if (event->getRspInfoField()->ErrorID == Center::SUCCESS) {
+			//更新报单的Channel索引
+			Order::ChannelOrderIndex index = order->getChannelIndex();
+			index.strOrderRef = event->getOrderInsertField()->OrderRef;
+			order->setChannelIndex(index);
+
+			//更新报单的数量数据
+
+			//更新报单的状态
+			order->setOrderStat(Order::submitted);
+
+			//更新报单的时间数据
+
+		}
+	} while(false);
 }
 
 void TraderServantImp::handleOrderActionNotify(const OpctxPtr& op) {

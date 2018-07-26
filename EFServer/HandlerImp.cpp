@@ -107,7 +107,7 @@ void HandlerImp::OnRspError(CThostFtdcRspInfoField* pRspInfo, int nRequestID,
 	event->setSrcChannel(_pChannel);
 	Manager::getInstance()->getDispatcher()->postMessage(event);
 
-	TLOGDEBUG("[Center][HandlerImp::OnRspError] param error callback event, " << \
+	TLOGDEBUG("[Center][HandlerImp::OnRspError] request param error callback event, " << \
 			"actionid = " << nRequestID << "; " <<\
 			"errcode = " << pRspInfo->ErrorID << "; " <<\
 			"errmsg = " << TC_Encoder::gbk2utf8(pRspInfo->ErrorMsg) << endl);
@@ -115,6 +115,14 @@ void HandlerImp::OnRspError(CThostFtdcRspInfoField* pRspInfo, int nRequestID,
 
 void HandlerImp::OnRspOrderInsert(CThostFtdcInputOrderField* pInputOrder,
 		CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast) {
+	OrderInsertEvent* event = new OrderInsertEvent();
+	event->setRequestId(nRequestID);
+	event->copyRspField(pRspInfo,pInputOrder);
+	event->setSrcChannel(_pChannel);
+	Manager::getInstance()->getDispatcher()->postMessage(event);
+
+	TLOGDEBUG("[Center][HandlerImp::OnRspOrderInsert] OrderInsert callback event, " << \
+			"actionid = " << nRequestID << endl);
 }
 
 void HandlerImp::OnRspOrderAction(

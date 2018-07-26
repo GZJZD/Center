@@ -126,12 +126,12 @@ bool Session::fetchOrder(int actionid, OrderPtr& order) {
 OrderPtr& Session::createOrder(int orderid) {
 	TC_ThreadLock::Lock lock(*this);
 
-	OrderPtr order = new Order();
+	OrderPtr order = new Order(orderid, _nFrontID, _nSessionID);
 	_lstOrders.insert(_lstOrders.end(), order);
 
 	TLOGDEBUG("[Center][Channel::createOrder] create new order, " << \
-			"session.account = " << session->getAccount() << "; " << \
-			"session.status = " << session->getEumStatus() << endl);
+			"order.orderid = " << orderid << "; " << \
+			"order.channelindex = " << order->getChannelIndex().toIndex() << endl);
 
 	return _lstOrders.back();
 }

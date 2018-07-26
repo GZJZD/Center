@@ -288,22 +288,50 @@ int Channel::orderOpen(TraderCallbackPtr& cb, const Center::orderOpenRequest& re
 	}
 
 	//处理请求参数非法
-	CThostFtdcReqUserLoginField reqUserLogin;
-	if (!transformUserLoginParam(req, &reqUserLogin)) {
+	CThostFtdcInputOrderField reqInputOrder;
+	if (!transformOrderInsertParam(req, &reqInputOrder)) {
 		TLOGERROR("[Center][Channel::orderOpen] param transform error, " << \
-				"account = " + req.userId << endl);
+				"order = " + req.requestId << "; " << \
+				"account = " + req.userId << "; " << \
+				"instrument = " + req.instrumentId << endl);
 		return Center::PARAM_LENGTH_ERROR;
 	}
 
+	//设置市价报单限定参数
+	{
+		//成交量类型设定为任何数量
+		reqInputOrder.VolumeCondition = THOST_FTDC_VC_AV;
+		//最小成交量设定为1
+		reqInputOrder.MinVolume = 1;
+		//强平原因设定为非强平
+		reqInputOrder.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+		//自定挂起标志设定为否
+		reqInputOrder.IsAutoSuspend = 0;
+		//用户强平标志设定为否
+		reqInputOrder.UserForceClose = 0;
+
+		//报单价格条件类型设定为任意价
+		reqInputOrder.OrderPriceType = THOST_FTDC_OPT_AnyPrice;
+		//市价单价格设定为0
+		reqInputOrder.LimitPrice = 0;
+		//有效期类型设定为立即完成，否则撤销
+		reqInputOrder.TimeCondition = THOST_FTDC_TC_IOC;
+
+		//开平标志，固定设定为开仓标志
+		reqInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_Open;
+	}
+
 	//调用API登录接口
-	int res = _pTraderApi->ReqUserLogin(&reqUserLogin, incActionId());
+	int res = _pTraderApi->ReqOrderInsert(&reqInputOrder, incActionId());
 	if (0 == res) {
-		//更新session状态
-		session->setEumStatus(Session::logining);
+		//更新报单状态
+		order->setOpenFlag(THOST_FTDC_OF_Open);
+		order->setBuyFlag(reqInputOrder.Direction);
+		order->setOrderStat(Order::submitting);
 
 		//保存调用交易API的登录请求后产生的上下文
 		cb->setActionID(curActionId());
-		session->pushActionContext(cb);
+		order->pushActionContext(cb);
 	}
 	else if (-1 == res) {
 		res = Center::REQT_SEND_FAILED;
@@ -315,16 +343,83 @@ int Channel::orderOpen(TraderCallbackPtr& cb, const Center::orderOpenRequest& re
 		res = Center::REQT_RATEPERSEC_OVERLIMIT;
 	}
 
-	TLOGDEBUG("[Center][Channel::orderOpen] ReqUserLogin api called, " << \
+	TLOGDEBUG("[Center][Channel::orderOpen] ReqOrderInsert api called, " << \
 			"actionid = " << curActionId() << "; " << \
 			"result = " << res << endl);
 
 	return res;
-
 }
 
 int Channel::orderClose(TraderCallbackPtr& cb, const Center::orderCloseRequest& req) {
-	return Center::SUCCESS;
+	SessionPtr session = NULL;
+	if (!fetchSession(req.userId, session)) {
+		TLOGERROR("[Center][Channel::orderClose] fetch session error, " << \
+				"account = " + req.userId << endl);
+		return Center::UNKNOWN_ERROR;
+	}
+
+	OrderPtr order = NULL;
+	if (!session->fetchOrder(req.requestId, order)) {
+		//order不存在时，则创建该order
+		order = session->createOrder(req.requestId);
+	}
+
+	//处理请求参数非法
+	CThostFtdcInputOrderField reqInputOrder;
+	if (!transformOrderInsertParam(req, &reqInputOrder)) {
+		TLOGERROR("[Center][Channel::orderClose] param transform error, " << \
+				"order = " + req.requestId << "; " << \
+				"account = " + req.userId << "; " << \
+				"instrument = " + req.instrumentId << endl);
+		return Center::PARAM_LENGTH_ERROR;
+	}
+
+	//设置市价报单限定参数
+	{
+		//成交量类型设定为任何数量
+		reqInputOrder.VolumeCondition = THOST_FTDC_VC_AV;
+		//最小成交量设定为1
+		reqInputOrder.MinVolume = 1;
+		//强平原因设定为非强平
+		reqInputOrder.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+		//自定挂起标志设定为否
+		reqInputOrder.IsAutoSuspend = 0;
+		//用户强平标志设定为否
+		reqInputOrder.UserForceClose = 0;
+
+		//报单价格条件类型设定为任意价
+		reqInputOrder.OrderPriceType = THOST_FTDC_OPT_AnyPrice;
+		//市价单价格设定为0
+		reqInputOrder.LimitPrice = 0;
+		//有效期类型设定为立即完成，否则撤销
+		reqInputOrder.TimeCondition = THOST_FTDC_TC_IOC;
+
+		//开平标志，固定设定为开仓标志
+		reqInputOrder.CombOffsetFlag[0] = THOST_FTDC_OF_Close;
+	}
+
+	//调用API登录接口
+	int res = _pTraderApi->ReqOrderInsert(&reqInputOrder, incActionId());
+	if (0 == res) {
+		//保存调用交易API的登录请求后产生的上下文
+		cb->setActionID(curActionId());
+		order->pushActionContext(cb);
+	}
+	else if (-1 == res) {
+		res = Center::REQT_SEND_FAILED;
+	}
+	else if (-2 == res) {
+		res = Center::REQT_QUEUESIZE_OVERLIMIT;
+	}
+	else if (-3 == res) {
+		res = Center::REQT_RATEPERSEC_OVERLIMIT;
+	}
+
+	TLOGDEBUG("[Center][Channel::orderClose] ReqOrderInsert api called, " << \
+			"actionid = " << curActionId() << "; " << \
+			"result = " << res << endl);
+
+	return res;
 }
 
 int Channel::instrumentCommission(TraderCallbackPtr& cb,
@@ -543,4 +638,88 @@ bool Channel::transformInstrumentQueryParam(
 bool Channel::transformMarketDataQueryParam(
 		const Center::marketDataQueryRequest& req_src,
 		CThostFtdcQryDepthMarketDataField* req_dst) {
+}
+
+bool Channel::transformOrderInsertParam(const Center::orderOpenRequest& req_src,
+		CThostFtdcInputOrderField *req_dst) {
+	do {
+		memset(req_dst, 0, sizeof(CThostFtdcInputOrderField));
+
+		//设定买卖方向, 0代表买，1代表卖
+		req_dst->Direction = (req_src.orderDirection == 0) ? THOST_FTDC_D_Buy : THOST_FTDC_D_Sell;
+
+		//数量
+		req_dst->VolumeTotalOriginal = req_src.volumeTotalOriginal;
+
+		//传入的请求参数赋值
+		unsigned int brokeridSize = sizeof(req_dst->BrokerID)/sizeof(char);
+		if (req_src.brokerId.length() >= brokeridSize) {
+			break;
+		}
+		strncpy(req_dst->BrokerID, req_src.brokerId.c_str(), brokeridSize);
+
+		//注意：目前UserID、AccountID、InvestorID，如果要填，都填一样的
+		unsigned int useridSize = sizeof(req_dst->UserID)/sizeof(char);
+		if (req_src.userId.length() >= useridSize) {
+			break;
+		}
+		strncpy(req_dst->UserID, req_src.userId.c_str(), useridSize);
+
+		useridSize = sizeof(req_dst->InvestorID)/sizeof(char);
+		if (req_src.userId.length() >= useridSize) {
+			break;
+		}
+		strncpy(req_dst->InvestorID, req_src.userId.c_str(), useridSize);
+
+		unsigned int instrumentSize = sizeof(req_dst->InstrumentID)/sizeof(char);
+		if (req_src.instrumentId.length() >= instrumentSize) {
+			break;
+		}
+		strncpy(req_dst->InstrumentID, req_src.instrumentId.c_str(), instrumentSize);
+
+		return true;
+	} while(false);
+	return false;
+}
+
+bool Channel::transformOrderInsertParam(const Center::orderCloseRequest& req_src,
+		CThostFtdcInputOrderField *req_dst) {
+	do {
+		memset(req_dst, 0, sizeof(CThostFtdcInputOrderField));
+
+		//设定买卖方向, 0代表买，1代表卖
+		req_dst->Direction = (req_src.orderDirection == 0) ? THOST_FTDC_D_Buy : THOST_FTDC_D_Sell;
+
+		//数量
+		req_dst->VolumeTotalOriginal = req_src.orderVolume;
+
+		//传入的请求参数赋值
+		unsigned int brokeridSize = sizeof(req_dst->BrokerID)/sizeof(char);
+		if (req_src.brokerId.length() >= brokeridSize) {
+			break;
+		}
+		strncpy(req_dst->BrokerID, req_src.brokerId.c_str(), brokeridSize);
+
+		//注意：目前UserID、AccountID、InvestorID，如果要填，都填一样的
+		unsigned int useridSize = sizeof(req_dst->UserID)/sizeof(char);
+		if (req_src.userId.length() >= useridSize) {
+			break;
+		}
+		strncpy(req_dst->UserID, req_src.userId.c_str(), useridSize);
+
+		useridSize = sizeof(req_dst->InvestorID)/sizeof(char);
+		if (req_src.userId.length() >= useridSize) {
+			break;
+		}
+		strncpy(req_dst->InvestorID, req_src.userId.c_str(), useridSize);
+
+		unsigned int instrumentSize = sizeof(req_dst->InstrumentID)/sizeof(char);
+		if (req_src.instrumentId.length() >= instrumentSize) {
+			break;
+		}
+		strncpy(req_dst->InstrumentID, req_src.instrumentId.c_str(), instrumentSize);
+
+		return true;
+	} while(false);
+	return false;
 }

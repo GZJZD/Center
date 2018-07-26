@@ -92,6 +92,12 @@ protected:
 	bool transformMarketDataQueryParam(const Center::marketDataQueryRequest& req_src,
 			CThostFtdcQryDepthMarketDataField *req_dst);
 
+	bool transformOrderInsertParam(const Center::orderOpenRequest& req_src,
+			CThostFtdcInputOrderField *req_dst);
+
+	bool transformOrderInsertParam(const Center::orderCloseRequest& req_src,
+			CThostFtdcInputOrderField *req_dst);
+
 private:
 	int _nActionID;
 	int _nLinkStatus;

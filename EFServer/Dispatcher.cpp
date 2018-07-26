@@ -74,7 +74,24 @@ void Dispatcher::doProcess(Event* op) {
 			break;
 		case Event::order_insert_event:
 		{
+			OrderInsertEvent* pEvent = dynamic_cast<OrderInsertEvent*>(op);
 
+			SessionPtr session = NULL;
+			OrderPtr order = NULL;
+			TraderCallbackPtr cb = NULL;
+			if (pEvent && op->getSrcChannel()->fetchSession(pEvent->getOrderInsertField()->UserID, session)
+					&& session->fetchOrder(pEvent->getRequestId(), order)
+					&& order->getActionContext(pEvent->getRequestId(), cb)) {
+
+				TraderServantImpPtr pServant = TraderServantImpPtr::dynamicCast(cb->getServant());
+				if(pServant) {
+					Opctx* ctx = new Opctx();
+					ctx->setEvent(op);
+					ctx->setChannel(op->getSrcChannel());
+					ctx->setCallback(cb);
+					pServant->pushCustomMessage(ctx);
+				}
+			}
 		}
 			break;
 		case Event::order_action_event:
