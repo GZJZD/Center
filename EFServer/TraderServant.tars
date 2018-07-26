@@ -1,0 +1,187 @@
+
+module Center
+{
+// 用户登录接口参数
+struct userLoginRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string brokerId;
+	4 require string userId;
+	5 require string password;
+	6 optional string userProductInfo;
+	7 optional int    forcedreset = 0;
+};
+
+struct userLoginResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+};
+
+// 用户注销接口参数
+struct userLogoutRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string brokerId;
+	4 require string userId;
+};
+
+struct userLogoutResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+};
+
+// 实际完成的交易数据
+struct tradeItem
+{
+	1 require string tradeId;
+	2 require int direction;
+	3 require double price;
+	4 require int volume;
+	5 require string tradeDate;
+	6 require string tradeTime;
+};
+
+// 开仓交易接口参数
+struct orderOpenRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string brokerId;
+	4 require string userId;
+	5 require string instrumentId;
+	6 require int    orderDirection;
+	7 require int    volumeTotalOriginal;
+	8 optional int   orderTimeout = 5000;
+};
+
+struct orderOpenResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+	5 require string instrumentId;
+	6 require vector<tradeItem> tradeArrayItems;
+};
+
+// 平仓交易接口参数
+struct orderCloseRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string brokerId;
+	4 require string userId;
+	5 require string instrumentId;
+	6 require int    orderDirection;
+	7 require int    orderVolume;
+};
+
+struct orderCloseResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+	5 require string instrumentId;
+	6 require vector<tradeItem> tradeArrayItems;
+};
+
+// 合约查询接口参数
+struct instrumentQueryRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string instrumentId;
+};
+
+struct instrumentQueryResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+	5 require string instrumentId;
+	6 require string instrumentName;
+	7 require int maxMarketOrderVolume;
+	8 require int minMarketOrderVolume;
+	9 require int volumeMultiple;
+	10 require double priceTick;
+	11 require string createDate;
+	12 require string openDate;
+	13 require string expireDate;
+};
+
+// 合约手续费查询接口参数
+struct instrumentCommissionQueryRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string brokerId;
+	4 require string userId;
+	5 require string instrumentId;
+};
+
+struct instrumentCommissionQueryResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+	5 require string instrumentId;
+	6 require double openRatioByMoney;
+	7 require double openRatioByVolume;
+	8 require double closeRatioByMoney;
+	9 require double closeRatioByVolume;
+};
+
+struct bidArrayItem
+{
+	1 require double bidPrice;
+	2 require int bidVolume;
+};
+
+struct askArrayItem
+{
+	1 require double askPrice;
+	2 require int askVolume;
+};
+
+// 行情查询接口参数
+struct marketDataQueryRequest
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require string instrumentId;
+};
+
+struct marketDataQueryResponse
+{
+	1 require string typeId;
+	2 require int    requestId;
+	3 require int    errcode;
+	4 require string errmsg;
+	5 require string instrumentId;
+	6 require vector<bidArrayItem> bidArrayItems;
+	7 require vector<askArrayItem> askArrayItems;
+};
+
+interface TraderServant
+{
+    int userLogin(userLoginRequest req, out userLoginResponse rsp);
+    int userLogout(userLogoutRequest req, out userLogoutResponse rsp);
+    int orderOpen(orderOpenRequest req, out orderOpenResponse rsp);
+    int orderClose(orderCloseRequest req, out orderCloseResponse rsp);
+    int instrumentQuery(instrumentQueryRequest req, out instrumentQueryResponse rsp);
+    int instrumentCommissionQuery(instrumentCommissionQueryRequest req, out instrumentCommissionQueryResponse rsp);
+    int marketDataQuery(marketDataQueryRequest req, out marketDataQueryResponse rsp);
+};
+
+};

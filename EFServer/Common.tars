@@ -1,0 +1,19 @@
+
+module Center
+{
+   ////////////////////////////////////////////////////////////////
+    // Center定义的返回码
+
+    const int SUCCESS            = 0;       //服务器端处理成功
+    const int LINK_BROKEN        = -1001;   //链路断开
+    const int REPEAT_LOGIN       = -1002;   //账号重复登录
+    const int ACK_TIMEOUT        = -1003;   //交易代理应答超时
+    const int ORDER_UNFINISHED   = -1004;
+    const int PARAM_LENGTH_ERROR = -1005;
+   
+    const int UNKNOWN_ERROR      = -1999;   //未知错误
+    
+    const int REQT_SEND_FAILED                 = -2001;   //交易代理应答超时
+    const int REQT_QUEUESIZE_OVERLIMIT         = -2002;   //交易代理应答超时
+    const int REQT_RATEPERSEC_OVERLIMIT        = -2003;   //交易代理应答超时
+}; 
