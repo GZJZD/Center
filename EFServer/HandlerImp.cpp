@@ -131,7 +131,22 @@ void HandlerImp::OnRspOrderAction(
 }
 
 void HandlerImp::OnRtnOrder(CThostFtdcOrderField* pOrder) {
+	RtnOrderEvent* event = new RtnOrderEvent();
+	event->setRequestId(pOrder->RequestID);
+	event->copyRspField(pOrder);
+	event->setSrcChannel(_pChannel);
+	Manager::getInstance()->getDispatcher()->postMessage(event);
+
+	TLOGDEBUG("[Center][HandlerImp::OnRtnOrder] RtnOrder callback event, " << \
+			"actionid = " << pOrder->RequestID << endl);
 }
 
 void HandlerImp::OnRtnTrade(CThostFtdcTradeField* pTrade) {
+	RtnTradeEvent* event = new RtnTradeEvent();
+	event->copyRspField(pTrade);
+	event->setSrcChannel(_pChannel);
+	Manager::getInstance()->getDispatcher()->postMessage(event);
+
+	TLOGDEBUG("[Center][HandlerImp::OnRtnTrade] RtnTrade callback event, " << \
+			"tradeid = " << pTrade->TradeID << endl);
 }

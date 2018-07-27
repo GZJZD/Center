@@ -101,12 +101,77 @@ void Dispatcher::doProcess(Event* op) {
 			break;
 		case Event::order_rtn_event:
 		{
+			RtnOrderEvent* pEvent = dynamic_cast<RtnOrderEvent*>(op);
+			if (!pEvent) {
+				break;
+			}
 
+			SessionPtr session = NULL;
+			if (!op->getSrcChannel()->fetchSession(pEvent->getOrderField()->UserID, session) || !session) {
+				break;
+			}
+
+			OrderPtr order = NULL;
+			Order::ChannelOrderIndex index;
+			index.nFrontID = pEvent->getOrderField()->FrontID;
+			index.nSessionID = pEvent->getOrderField()->SessionID;
+			index.strOrderRef = pEvent->getOrderField()->OrderRef;
+
+			if (!session->fetchOrder(index, order) || !order) {
+				break;
+			}
+
+			TraderCallbackPtr cb = NULL;
+			if (!order->getActionContext(pEvent->getRequestId(), cb) || !cb) {
+				break;
+			}
+
+			TraderServantImpPtr pServant = TraderServantImpPtr::dynamicCast(cb->getServant());
+			if(pServant) {
+				Opctx* ctx = new Opctx();
+				ctx->setEvent(op);
+				ctx->setChannel(op->getSrcChannel());
+				ctx->setCallback(cb);
+				pServant->pushCustomMessage(ctx);
+			}
 		}
 			break;
 		case Event::trade_rtn_event:
 		{
+			RtnTradeEvent* pEvent = dynamic_cast<RtnTradeEvent*>(op);
+			if (!pEvent) {
+				break;
+			}
 
+			SessionPtr session = NULL;
+			if (!op->getSrcChannel()->fetchSession(pEvent->getTradeField()->UserID, session) || !session) {
+				break;
+			}
+
+			//根据system索引获取order对象实例
+			OrderPtr order = NULL;
+			Order::SystemOrderIndex index;
+			index.strExchangeID = pEvent->getTradeField()->ExchangeID;
+			index.strOrderSysID = pEvent->getTradeField()->OrderSysID;
+
+			if (!session->fetchOrder(index, order) || !order) {
+				break;
+			}
+
+			TraderCallbackPtr cb = NULL;
+			//取第一个cb
+			if (!order->getActionContext(cb) || !cb) {
+				break;
+			}
+
+			TraderServantImpPtr pServant = TraderServantImpPtr::dynamicCast(cb->getServant());
+			if(pServant) {
+				Opctx* ctx = new Opctx();
+				ctx->setEvent(op);
+				ctx->setChannel(op->getSrcChannel());
+				ctx->setCallback(cb);
+				pServant->pushCustomMessage(ctx);
+			}
 		}
 			break;
 		case Event::instrument_commission_event:
@@ -171,47 +236,47 @@ void Dispatcher::doProcess(Event* op) {
 			break;
 		case Event::rsp_error_event:
 		{
-			TraderCallbackPtr cb = NULL;
-			do {
-				RspErrorEvent* pEvent = dynamic_cast<RspErrorEvent*>(op);
-				if (!pEvent) {
-					break;
-				}
-
-				//首先查找所有session
-				SessionPtr session = NULL;
-				if (op->getSrcChannel()->fetchSession(pEvent->getRequestId(), session)
-						&& session->getActionContext(pEvent->getRequestId(), cb)) {
-					break;
-				}
-
-				//然后再查找所有instrument
-				InstrumentPtr instrument = NULL;
-				if (op->getSrcChannel()->fetchInstrument(pEvent->getRequestId(), instrument)
-						&& instrument->getActionContext(pEvent->getRequestId(), cb)) {
-					break;
-				}
-
-				//然后再查找所有Order
-				OrderPtr order = NULL;
-				if (session && session->fetchOrder(pEvent->getRequestId(), order)
-						&& order->getActionContext(pEvent->getRequestId(), cb)) {
-					break;
-				}
-
-			} while(false);
-
-			//派发给请求的来源线程
-			if (cb) {
-				TraderServantImpPtr pServant = TraderServantImpPtr::dynamicCast(cb->getServant());
-				if(pServant) {
-					Opctx* ctx = new Opctx();
-					ctx->setEvent(op);
-					ctx->setChannel(op->getSrcChannel());
-					ctx->setCallback(cb);
-					pServant->pushCustomMessage(ctx);
-				}
-			}
+//			TraderCallbackPtr cb = NULL;
+//			do {
+//				RspErrorEvent* pEvent = dynamic_cast<RspErrorEvent*>(op);
+//				if (!pEvent) {
+//					break;
+//				}
+//
+//				//首先查找所有session
+//				SessionPtr session = NULL;
+//				if (op->getSrcChannel()->fetchSession(pEvent->getRequestId(), session)
+//						&& session->getActionContext(pEvent->getRequestId(), cb)) {
+//					break;
+//				}
+//
+//				//然后再查找所有instrument
+//				InstrumentPtr instrument = NULL;
+//				if (op->getSrcChannel()->fetchInstrument(pEvent->getRequestId(), instrument)
+//						&& instrument->getActionContext(pEvent->getRequestId(), cb)) {
+//					break;
+//				}
+//
+//				//然后再查找所有Order
+//				OrderPtr order = NULL;
+//				if (session && session->fetchOrder(pEvent->getRequestId(), order)
+//						&& order->getActionContext(pEvent->getRequestId(), cb)) {
+//					break;
+//				}
+//
+//			} while(false);
+//
+//			//派发给请求的来源线程
+//			if (cb) {
+//				TraderServantImpPtr pServant = TraderServantImpPtr::dynamicCast(cb->getServant());
+//				if(pServant) {
+//					Opctx* ctx = new Opctx();
+//					ctx->setEvent(op);
+//					ctx->setChannel(op->getSrcChannel());
+//					ctx->setCallback(cb);
+//					pServant->pushCustomMessage(ctx);
+//				}
+//			}
 		}
 			break;
 		default:

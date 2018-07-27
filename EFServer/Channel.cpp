@@ -324,10 +324,9 @@ int Channel::orderOpen(TraderCallbackPtr& cb, const Center::orderOpenRequest& re
 	//调用API登录接口
 	int res = _pTraderApi->ReqOrderInsert(&reqInputOrder, incActionId());
 	if (0 == res) {
-		//更新报单状态
+		//更新报单标记字段
 		order->setOpenFlag(THOST_FTDC_OF_Open);
 		order->setBuyFlag(reqInputOrder.Direction);
-		order->setOrderStat(Order::submitting);
 
 		//保存调用交易API的登录请求后产生的上下文
 		cb->setActionID(curActionId());

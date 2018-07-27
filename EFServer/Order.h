@@ -13,23 +13,28 @@
 #include <sstream>
 #include "util/tc_monitor.h"
 #include "util/tc_autoptr.h"
+#include "util/tc_timeprovider.h"
 #include "TraderCallback.h"
 #include "TraderServant.h"
+#include "Trade.h"
 
 using namespace std;
 class Order : public tars::TC_ThreadLock, public tars::TC_HandleBase {
 public:
-	typedef enum {
-		none = 0,
-		submitting,
-		submitted,
-		piecetrading,
-		fulltrading,
-		canceling,
-		canceled
-	}OrderStatus;
+	typedef struct OrderStatus {
+		char bSubmitStatus;
+		char bOrderStatus;
 
-	typedef struct {
+		string toStatus() const {
+			stringstream ss;
+			ss << bSubmitStatus << ".";
+			ss << bOrderStatus;
+			return ss.str();
+		}
+
+	} OrderStatus;
+
+	typedef struct ChannelOrderIndex {
 		int nFrontID;
 		int nSessionID;
 		string strOrderRef;
@@ -41,9 +46,19 @@ public:
 			ss << strOrderRef;
 			return ss.str();
 		}
+
+		bool operator==(const ChannelOrderIndex& ps) {
+			if (this->nFrontID == ps.nFrontID
+					&& this->nSessionID == ps.nSessionID
+					&& this->strOrderRef == ps.strOrderRef) {
+				return true;
+			}
+			return false;
+		}
+
 	} ChannelOrderIndex;
 
-	typedef struct {
+	typedef struct ExchangeOrderIndex {
 		string strExchangeID;
 		string strTraderID;
 		string strOrderLocalID;
@@ -55,9 +70,19 @@ public:
 			ss << strOrderLocalID;
 			return ss.str();
 		}
+
+		bool operator==(const ExchangeOrderIndex& ps) {
+			if (this->strExchangeID == ps.strExchangeID
+					&& this->strTraderID == ps.strTraderID
+					&& this->strOrderLocalID == ps.strOrderLocalID) {
+				return true;
+			}
+			return false;
+		}
+
 	} ExchangeOrderIndex;
 
-	typedef struct {
+	typedef struct SystemOrderIndex {
 		string strExchangeID;
 		string strOrderSysID;
 
@@ -67,14 +92,47 @@ public:
 			ss << strOrderSysID;
 			return ss.str();
 		}
+
+		bool operator==(const SystemOrderIndex& ps) {
+			if (this->strExchangeID == ps.strExchangeID
+					&& this->strOrderSysID == ps.strOrderSysID) {
+				return true;
+			}
+			return false;
+		}
+
 	} SystemOrderIndex;
 
-	typedef struct {
+	typedef struct OrderDateTime {
+		string sInsertDate;
+		string sInsertTime;
+		string sActiveTime;
+		string sSuspendTime;
+		string sUpdateTime;
+		string sCancelTime;
+	} OrderDateTime;
 
-	};
+	typedef struct OrderActionTime {
+		time_t tLocalTimeCreated;
+		int tMaxWaitTimeout;
 
-	typedef struct {
+		OrderActionTime() {
+			tLocalTimeCreated = TC_TimeProvider::getInstance()->getNow();
+			tMaxWaitTimeout = 30 * 1000;
+		}
 
+		bool hasTimeout() {
+			time_t cur_time = TC_TimeProvider::getInstance()->getNow();
+			if (cur_time - tLocalTimeCreated >= tMaxWaitTimeout) {
+				return true;
+			}
+			return false;
+		}
+	} OrderActionTime;
+
+	typedef struct OrderVolume {
+		int nVolumeTotalOriginal; //总数量
+		int	nVolumeTotal;         //剩余数量
 	} OrderVolume;
 
 public:
@@ -84,6 +142,8 @@ public:
 	void pushActionContext(TraderCallbackPtr& cb);
 
 	bool getActionContext(int actionid, TraderCallbackPtr& cb);
+
+	bool getActionContext(TraderCallbackPtr& cb);
 
 	void delActionContext(int actionid);
 
@@ -113,14 +173,6 @@ public:
 		_bOpenFlag = openFlag;
 	}
 
-	OrderStatus getOrderStat() const {
-		return _nOrderStat;
-	}
-
-	void setOrderStat(OrderStatus orderStat) {
-		_nOrderStat = orderStat;
-	}
-
 	char getBuyFlag() const {
 		return _bBuyFlag;
 	}
@@ -129,17 +181,63 @@ public:
 		_bBuyFlag = buyFlag;
 	}
 
+	time_t getLocalTimeCreated() const {
+		return _sOrderActionTime.tLocalTimeCreated;
+	}
+
+	const OrderVolume& getOrderVolume() const {
+		return _sOrderVolume;
+	}
+
+	void setOrderVolume(const OrderVolume& orderVolume) {
+		_sOrderVolume = orderVolume;
+	}
+
+	const ExchangeOrderIndex& getExchangeIndex() const {
+		return _sExchangeIndex;
+	}
+
+	void setExchangeIndex(const ExchangeOrderIndex& exchangeIndex) {
+		_sExchangeIndex = exchangeIndex;
+	}
+
+	const SystemOrderIndex& getSystemIndex() const {
+		return _sSystemIndex;
+	}
+
+	void setSystemIndex(const SystemOrderIndex& systemIndex) {
+		_sSystemIndex = systemIndex;
+	}
+
+	OrderStatus getOrderStat() const {
+		return _sOrderStat;
+	}
+
+	void setOrderStat(OrderStatus orderStat) {
+		_sOrderStat = orderStat;
+	}
+
+	void setMaxWaitTimeout(int timeout) {
+		_sOrderActionTime.tMaxWaitTimeout = timeout;
+	}
+
 private:
 	int _nOrderID;
 	ChannelOrderIndex _sChannelIndex;
 	ExchangeOrderIndex _sExchangeIndex;
 	SystemOrderIndex _sSystemIndex;
 
+	OrderActionTime _sOrderActionTime;
+	OrderDateTime _sOrderDateTime;
+	OrderVolume _sOrderVolume;
+
 	char _bOpenFlag;
 	char _bBuyFlag;
-	OrderStatus _nOrderStat;
+	OrderStatus _sOrderStat;
 
+	//原则上报单是唯一的，但有可能出现同一编号的报单被客户端重发
 	vector<TraderCallbackPtr> _vctActions;
+	list<TradePtr> _lstTrades;
 };
 typedef tars::TC_AutoPtr<Order> OrderPtr;
 

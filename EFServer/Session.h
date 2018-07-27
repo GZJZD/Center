@@ -58,7 +58,9 @@ public:
 
 	bool fetchOrder(int orderid, OrderPtr& order);
 
-	bool fetchOrder(int actionid, OrderPtr& order);
+	bool fetchOrder(const Order::ChannelOrderIndex& index, OrderPtr& order);
+
+	bool fetchOrder(const Order::SystemOrderIndex& index, OrderPtr& order);
 
 	OrderPtr& createOrder(int orderid);
 

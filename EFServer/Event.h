@@ -282,6 +282,10 @@ public:
 		memcpy(_pOrderField, pOrderField, sizeof(CThostFtdcOrderField)/sizeof(char));
 	}
 
+	const CThostFtdcOrderField*& getOrderField() const {
+		return _pOrderField;
+	}
+
 protected:
 	int _nRequestID;
 

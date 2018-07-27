@@ -105,7 +105,7 @@ bool Session::fetchOrder(int orderid, OrderPtr& order) {
 	return false;
 }
 
-bool Session::fetchOrder(int actionid, OrderPtr& order) {
+bool Session::fetchOrder(const Order::ChannelOrderIndex& index, OrderPtr& order) {
 	TC_ThreadLock::Lock lock(*this);
 
 	list<OrderPtr>::iterator it = _lstOrders.begin();
@@ -113,7 +113,25 @@ bool Session::fetchOrder(int actionid, OrderPtr& order) {
 	{
 		order = *(it);
 		TraderCallbackPtr cb = NULL;
-		if (order->getActionContext(actionid, cb)) {
+		if (order->getChannelIndex() == index) {
+			return true;
+		}
+		else {
+			it++;
+		}
+	}
+	return false;
+}
+
+bool Session::fetchOrder(const Order::SystemOrderIndex& index, OrderPtr& order) {
+	TC_ThreadLock::Lock lock(*this);
+
+	list<OrderPtr>::iterator it = _lstOrders.begin();
+	while (it != _lstOrders.end())
+	{
+		order = *(it);
+		TraderCallbackPtr cb = NULL;
+		if (order->getSystemIndex() == index) {
 			return true;
 		}
 		else {

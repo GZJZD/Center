@@ -617,26 +617,20 @@ void TraderServantImp::handleMarketDataQueryNotify(const OpctxPtr& op) {
 }
 
 void TraderServantImp::handleOrderInsertNotify(const OpctxPtr& op) {
-	do {
-		SessionPtr session = NULL;
-		OrderPtr order = NULL;
-		OrderInsertEventPtr event = OrderInsertEventPtr::dynamicCast(op->getEvent());
-		if (!event || !op->getChannel()->fetchSession(event->getOrderInsertField()->UserID, session)
-				|| session->fetchOrder(event->getRequestId(), order)) {
-			break;
-		}
+	OrderInsertEventPtr event = NULL;
+	SessionPtr session = NULL;
+	OrderPtr order = NULL;
 
-		OrderInsertEventPtr event = OrderInsertEventPtr::dynamicCast(op->getEvent());
+	do {
+		event = OrderInsertEventPtr::dynamicCast(op->getEvent());
 		if (!event) {
 			break;
 		}
 
-		SessionPtr session = NULL;
 		if (!op->getChannel()->fetchSession(event->getOrderInsertField()->UserID, session)) {
 			break;
 		}
 
-		OrderPtr order = NULL;
 		if (!session->fetchOrder(event->getRequestId(), order)) {
 			break;
 		}
@@ -648,12 +642,9 @@ void TraderServantImp::handleOrderInsertNotify(const OpctxPtr& op) {
 			order->setChannelIndex(index);
 
 			//更新报单的数量数据
-
-			//更新报单的状态
-			order->setOrderStat(Order::submitted);
-
-			//更新报单的时间数据
-
+			Order::OrderVolume volume = order->getOrderVolume();
+			volume.nVolumeTotalOriginal = event->getOrderInsertField()->VolumeTotalOriginal;
+			order->setOrderVolume(volume);
 		}
 	} while(false);
 }
@@ -662,7 +653,108 @@ void TraderServantImp::handleOrderActionNotify(const OpctxPtr& op) {
 }
 
 void TraderServantImp::handleOrderRtnNotify(const OpctxPtr& op) {
+	RtnOrderEventPtr event = NULL;
+	SessionPtr session = NULL;
+	OrderPtr order = NULL;
+
+	do {
+		event = RtnOrderEventPtr::dynamicCast(op->getEvent());
+		if (!event) {
+			break;
+		}
+
+		if (!op->getChannel()->fetchSession(event->getOrderField()->UserID, session)) {
+			break;
+		}
+
+		//根据channel索引获取Order对象实例
+		OrderPtr order = NULL;
+		Order::ChannelOrderIndex index;
+		index.nFrontID = event->getOrderField()->FrontID;
+		index.nSessionID = event->getOrderField()->SessionID;
+		index.strOrderRef = event->getOrderField()->OrderRef;
+
+		if (!session->fetchOrder(index, order) || !order) {
+			break;
+		}
+
+		//更新报单的Exchange索引
+		Order::ExchangeOrderIndex ex_index;
+		ex_index.strExchangeID = event->getOrderField()->ExchangeID;
+		ex_index.strOrderLocalID = event->getOrderField()->OrderLocalID;
+		ex_index.strTraderID = event->getOrderField()->TraderID;
+		order->setExchangeIndex(ex_index);
+
+		//更新报单的System索引
+		Order::SystemOrderIndex sys_index;
+		sys_index.strExchangeID = event->getOrderField()->ExchangeID;
+		sys_index.strOrderSysID = event->getOrderField()->OrderSysID;
+		order->setSystemIndex(sys_index);
+
+		//更新报单的数量数据
+		Order::OrderVolume volume = order->getOrderVolume();
+		volume.nVolumeTotalOriginal = event->getOrderField()->VolumeTotalOriginal;
+		volume.nVolumeTotal = event->getOrderField()->VolumeTotal;
+		order->setOrderVolume(volume);
+
+		//更新报单的状态
+		Order::OrderStatus status;
+		status.bSubmitStatus = event->getOrderField()->OrderSubmitStatus;
+		status.bOrderStatus = event->getOrderField()->OrderStatus;
+		order->setOrderStat(status);
+
+	} while(false);
 }
 
 void TraderServantImp::handleTradeRtnNotify(const OpctxPtr& op) {
+	RtnTradeEventPtr event = NULL;
+	SessionPtr session = NULL;
+	OrderPtr order = NULL;
+
+	do {
+		event = RtnTradeEventPtr::dynamicCast(op->getEvent());
+		if (!event) {
+			break;
+		}
+
+		if (!op->getChannel()->fetchSession(event->getTradeField()->UserID, session)) {
+			break;
+		}
+
+		//根据system索引获取order对象实例
+		OrderPtr order = NULL;
+		Order::SystemOrderIndex index;
+		index.strExchangeID = event->getTradeField()->ExchangeID;
+		index.strOrderSysID = event->getTradeField()->OrderSysID;
+
+		if (!session->fetchOrder(index, order) || !order) {
+			break;
+		}
+
+		//更新报单的Exchange索引
+		Order::ExchangeOrderIndex ex_index;
+		ex_index.strExchangeID = event->getOrderField()->ExchangeID;
+		ex_index.strOrderLocalID = event->getOrderField()->OrderLocalID;
+		ex_index.strTraderID = event->getOrderField()->TraderID;
+		order->setExchangeIndex(ex_index);
+
+		//更新报单的System索引
+		Order::SystemOrderIndex sys_index;
+		sys_index.strExchangeID = event->getOrderField()->ExchangeID;
+		sys_index.strOrderSysID = event->getOrderField()->OrderSysID;
+		order->setSystemIndex(sys_index);
+
+		//更新报单的数量数据
+		Order::OrderVolume volume = order->getOrderVolume();
+		volume.nVolumeTotalOriginal = event->getOrderField()->VolumeTotalOriginal;
+		volume.nVolumeTotal = event->getOrderField()->VolumeTotal;
+		order->setOrderVolume(volume);
+
+		//更新报单的状态
+		Order::OrderStatus status;
+		status.bSubmitStatus = event->getOrderField()->OrderSubmitStatus;
+		status.bOrderStatus = event->getOrderField()->OrderStatus;
+		order->setOrderStat(status);
+
+	} while(false);
 }
